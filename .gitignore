@@ -59,6 +59,8 @@ fit-dtb.blob*
 /spl/
 /tpl/
 /defconfig
+tools/boot
+boot.scr
 
 #
 # Generated include files

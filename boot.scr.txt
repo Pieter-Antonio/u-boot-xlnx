@@ -1,0 +1,43 @@
+for boot_target in ${boot_targets};
+do
+    if test "${boot_target}" = "mmc0" || test "${boot_target}" = "mmc1" ; then
+        if test -e ${devtype} ${devnum}:${distro_bootpart} /image.ub; then
+            fatload ${devtype} ${devnum}:${distro_bootpart} 0x10000000 image.ub;
+            bootm 0x10000000;
+            exit;
+        fi
+        if test -e ${devtype} ${devnum}:${distro_bootpart} /uImage; then
+            fatload ${devtype} ${devnum}:${distro_bootpart} 0x00200000 uImage;;
+        fi
+        if test -e ${devtype} ${devnum}:${distro_bootpart} /zImage; then
+            fatload ${devtype} ${devnum}:${distro_bootpart} 0x00200000 zImage;;
+        fi
+        if test -e ${devtype} ${devnum}:${distro_bootpart} /zynq-arty-z7.dtb; then
+            fatload ${devtype} ${devnum}:${distro_bootpart} 0x00100000 zynq-arty-z7.dtb;
+        fi
+        if test -e ${devtype} ${devnum}:${distro_bootpart} /rootfs.cpio.uboot; then
+            fatload ${devtype} ${devnum}:${distro_bootpart} 0x04000000 rootfs.cpio.uboot;
+            bootz 0x00200000 0x04000000 0x00100000
+            exit;
+        fi
+        bootz 0x00200000 - 0x00100000
+        exit;
+    fi
+    if test "${boot_target}" = "xspi0" || test "${boot_target}" = "qspi" || test "${boot_target}" = "qspi0"; then
+        sf probe 0 0 0;
+        if test "image.ub" = "image.ub"; then
+            sf read 0x10000000 0xF00000 0x6400000;
+            bootm 0x10000000;
+            exit;
+        fi
+      
+        if test "image.ub" = "zImage"; then
+            sf read 0x00200000 0xF00000 0x1D00000;
+            sf read 0x04000000 0x4000000 0x4000000
+            bootz 0x00200000 0x04000000 0x00100000
+            exit;
+        fi
+
+        exit;
+    fi
+done
