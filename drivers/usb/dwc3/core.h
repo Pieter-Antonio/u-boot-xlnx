@@ -184,6 +184,7 @@
 /* Global USB2 PHY Configuration Register */
 #define DWC3_GUSB2PHYCFG_PHYSOFTRST	(1 << 31)
 #define DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS	(1 << 30)
+#define DWC3_GUSB2PHYCFG_ULPIEXTVBUSDRV	BIT(17)
 #define DWC3_GUSB2PHYCFG_SUSPHY		(1 << 6)
 #define DWC3_GUSB2PHYCFG_ENBLSLPM	(1 << 8)
 #define DWC3_GUSB2PHYCFG_PHYIF(n)	((n) << 3)
@@ -248,6 +249,13 @@
 /* Global Frame Length Adjustment Register */
 #define DWC3_GFLADJ_30MHZ_SDBND_SEL		(1 << 7)
 #define DWC3_GFLADJ_30MHZ_MASK			0x3f
+#define DWC3_GFLADJ_REFCLK_FLADJ_MASK		GENMASK(21, 8)
+#define DWC3_GFLADJ_240MHZDECR			GENMASK(30, 24)
+#define DWC3_GFLADJ_240MHZDECR_PLS1		BIT(31)
+
+/* Global User Control Register*/
+#define DWC3_GUCTL_REFCLKPER_MASK		0xffc00000
+#define DWC3_GUCTL_REFCLKPER_SEL		22
 
 /* Device Configuration Register */
 #define DWC3_DCFG_DEVADDR(addr)	((addr) << 3)
@@ -405,11 +413,6 @@
 #define DWC3_DEPCMD_TYPE_ISOC		1
 #define DWC3_DEPCMD_TYPE_BULK		2
 #define DWC3_DEPCMD_TYPE_INTR		3
-
-/* Global Frame Length Adjustment Register */
-#define GFLADJ_30MHZ_REG_SEL		BIT(7)
-#define GFLADJ_30MHZ_MASK		GENMASK(5, 0)
-#define GFLADJ_REFCLK_FLADJ		GENMASK(21, 8)
 
 /* Structures */
 
@@ -673,8 +676,10 @@ struct dwc3_scratchpad_array {
  * @event_buffer_list: a list of event buffers
  * @gadget: device side representation of the peripheral controller
  * @gadget_driver: pointer to the gadget driver
+ * @ref_clk: reference clock
  * @regs: base address for our registers
  * @regs_size: address space size
+ * @ref_clk_per: reference clock period configuration
  * @nr_scratch: number of scratch buffers
  * @num_event_buffers: calculated number of event buffers
  * @u1u2: only used on revisions <1.83a for workaround
@@ -738,6 +743,8 @@ struct dwc3_scratchpad_array {
  *	1	- -3.5dB de-emphasis
  *	2	- No de-emphasis
  *	3	- Reserved
+ * @ulpi_ext_vbus_drv: Set to confiure the upli chip to drives CPEN pin
+ *			VBUS with an external supply.
  * @index: index of _this_ controller
  * @list: to maintain the list of dwc3 controllers
  */
@@ -770,6 +777,8 @@ struct dwc3 {
 
 	struct usb_gadget	gadget;
 	struct usb_gadget_driver *gadget_driver;
+
+	struct clk		*ref_clk;
 
 	void __iomem		*regs;
 	size_t			regs_size;
@@ -834,6 +843,7 @@ struct dwc3 {
 	u8			lpm_nyet_threshold;
 	u8			hird_threshold;
 	u32			fladj;
+	u32			ref_clk_per;
 	u8			incrx_mode;
 	u32			incrx_size;
 
@@ -869,6 +879,7 @@ struct dwc3 {
 
 	unsigned		tx_de_emphasis_quirk:1;
 	unsigned		tx_de_emphasis:2;
+	unsigned		ulpi_ext_vbus_drv:1;
 	int			index;
 	struct list_head        list;
 };

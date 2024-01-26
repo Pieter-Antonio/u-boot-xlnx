@@ -5,6 +5,7 @@
  */
 /dts-v1/;
 #include "zynq-7000.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Xilinx ZC702 board";
@@ -17,6 +18,8 @@
 		spi0 = &qspi;
 		mmc0 = &sdhci0;
 		usb0 = &usb0;
+		nvmem0 = &eeprom;
+		rtc0 = &rtc;
 	};
 
 	memory@0 {
@@ -32,14 +35,14 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
-		sw14 {
+		switch-14 {
 			label = "sw14";
 			gpios = <&gpio0 12 0>;
 			linux,code = <108>; /* down */
 			wakeup-source;
 			autorepeat;
 		};
-		sw13 {
+		switch-13 {
 			label = "sw13";
 			gpios = <&gpio0 14 0>;
 			linux,code = <103>; /* up */
@@ -64,19 +67,6 @@
 		reg = <0xe0002000 0x1000>;
 		view-port = <0x0170>;
 		drv-vbus;
-	};
-};
-
-&amba {
-	ocm: sram@fffc0000 {
-		compatible = "mmio-sram";
-		reg = <0xfffc0000 0x10000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0xfffc0000 0x10000>;
-		ocm-sram@0 {
-			reg = <0x0 0x10000>;
-		};
 	};
 };
 
@@ -116,8 +106,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
 	pinctrl-1 = <&pinctrl_i2c0_gpio>;
-	scl-gpios = <&gpio0 50 0>;
-	sda-gpios = <&gpio0 51 0>;
+	scl-gpios = <&gpio0 50 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio0 51 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 	i2c-mux@74 {
 		compatible = "nxp,pca9548";
@@ -158,7 +148,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			eeprom@54 {
+			eeprom: eeprom@54 {
 				compatible = "atmel,24c08";
 				reg = <0x54>;
 			};
@@ -180,7 +170,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
-			rtc@51 {
+			rtc: rtc@51 {
 				compatible = "nxp,pcf8563";
 				reg = <0x51>;
 			};
@@ -412,7 +402,6 @@
 &qspi {
 	u-boot,dm-pre-reloc;
 	status = "okay";
-	is-dual = <0>;
 	num-cs = <1>;
 	flash@0 {
 		compatible = "n25q128a11", "jedec,spi-nor";

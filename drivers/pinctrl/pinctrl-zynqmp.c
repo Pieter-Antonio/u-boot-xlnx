@@ -12,12 +12,12 @@
 #include <dm.h>
 #include <errno.h>
 #include <malloc.h>
-#include <asm/io.h>
-#include <linux/compat.h>
-#include <dm/device_compat.h>
-#include <dm/pinctrl.h>
 #include <zynqmp_firmware.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/io.h>
+#include <dm/device_compat.h>
+#include <dm/pinctrl.h>
+#include <linux/compat.h>
 #include <dt-bindings/pinctrl/pinctrl-zynqmp.h>
 
 #define PINCTRL_GET_FUNC_GROUPS_RESP_LEN	12
@@ -29,6 +29,11 @@
 #define MAX_PIN_GROUPS				50
 #define MAX_GROUP_NAME_LEN			32
 #define MAX_FUNC_NAME_LEN			16
+
+#define DRIVE_STRENGTH_2MA	2
+#define DRIVE_STRENGTH_4MA	4
+#define DRIVE_STRENGTH_8MA	8
+#define DRIVE_STRENGTH_12MA	12
 
 /*
  * This driver works with very simple configuration that has the same name
@@ -152,6 +157,12 @@ static int zynqmp_pm_pinctrl_get_config(const u32 pin, const u32 param, u32 *val
 static int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param, u32 value)
 {
 	int ret;
+
+	if (param == PM_PINCTRL_CONFIG_TRI_STATE) {
+		ret = zynqmp_pm_feature(PM_PINCTRL_CONFIG_PARAM_SET);
+		if (ret < PM_PINCTRL_PARAM_SET_VERSION)
+			return -EOPNOTSUPP;
+	}
 
 	/* Request the pin first */
 	ret = xilinx_pm_request(PM_PINCTRL_REQUEST, pin, 0, 0, 0, NULL);
@@ -462,6 +473,10 @@ static int zynqmp_pinconf_set(struct udevice *dev, unsigned int pin,
 				 pin);
 		break;
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		param = PM_PINCTRL_CONFIG_TRI_STATE;
+		arg = PM_PINCTRL_TRI_STATE_ENABLE;
+		ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
+		break;
 	case PIN_CONFIG_LOW_POWER_MODE:
 		/*
 		 * This cases are mentioned in dts but configurable
@@ -469,6 +484,11 @@ static int zynqmp_pinconf_set(struct udevice *dev, unsigned int pin,
 		 * boot time warnings as of now.
 		 */
 		ret = 0;
+		break;
+	case PIN_CONFIG_OUTPUT_ENABLE:
+		param = PM_PINCTRL_CONFIG_TRI_STATE;
+		arg = PM_PINCTRL_TRI_STATE_DISABLE;
+		ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
 		break;
 	default:
 		dev_warn(dev, "unsupported configuration parameter '%u'\n",

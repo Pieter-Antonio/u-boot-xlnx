@@ -84,9 +84,6 @@ config ZYNQMP_SPL_PM_CFG_OBJ_FILE
 	  Leave this option empty if your PMU firmware has a hard-coded
 	  configuration object or you are loading it by any other means.
 
-config ZYNQMP_USB
-	bool "Configure ZynqMP USB"
-
 config ZYNQMP_NO_DDR
 	bool "Disable DDR MMU mapping"
 	help
@@ -140,8 +137,16 @@ config DEFINE_TCM_OCM_MMAP
 
 config ZYNQMP_PSU_INIT_ENABLED
 	bool "Include psu_init"
+	select BOARD_EARLY_INIT_F
 	help
-	  Include psu_init to full u-boot. SPL include psu_init by default.
+	  Include psu_init to full u-boot.
+
+config SPL_ZYNQMP_PSU_INIT_ENABLED
+	bool "Include psu_init in SPL"
+	default y if SPL
+	select BOARD_EARLY_INIT_F
+	help
+	  Include psu_init by default in SPL.
 
 config SPL_ZYNQMP_ALT_BOOTMODE_ENABLED
 	bool "Overwrite SPL bootmode"

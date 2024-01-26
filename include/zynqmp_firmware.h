@@ -160,6 +160,12 @@ enum dll_reset_type {
 	PM_DLL_RESET_PULSE = 2,
 };
 
+enum ospi_mux_select_type {
+	PM_OSPI_MUX_SEL_DMA,
+	PM_OSPI_MUX_SEL_LINEAR,
+	PM_OSPI_MUX_GET_MODE,
+};
+
 enum pm_query_id {
 	PM_QID_INVALID = 0,
 	PM_QID_CLOCK_GET_NAME = 1,
@@ -401,12 +407,6 @@ enum pm_ioctl_id {
 	IOCTL_GET_QOS = 34,
 };
 
-enum ospi_mux_select_type {
-	PM_OSPI_MUX_SEL_DMA,
-	PM_OSPI_MUX_SEL_LINEAR,
-	PM_OSPI_MUX_GET_MODE,
-};
-
 enum pm_sd_config_type {
 	SD_CONFIG_EMMC_SEL = 1,	/* To set SD_EMMC_SEL in CTRL_REG_SD */
 	SD_CONFIG_BASECLK = 2,	/* To set SD_BASECLK in SD_CONFIG_REG1 */
@@ -414,29 +414,26 @@ enum pm_sd_config_type {
 	SD_CONFIG_FIXED = 4,	/* To set fixed config registers */
 };
 
-#define PM_SIP_SVC      0xc2000000
+enum pm_gem_config_type {
+	GEM_CONFIG_SGMII_MODE = 1, /* To set GEM_SGMII_MODE in GEM_CLK_CTRL */
+	GEM_CONFIG_FIXED = 2,   /* To set fixed config registers */
+};
 
-#define ZYNQMP_PM_VERSION_MAJOR         1
-#define ZYNQMP_PM_VERSION_MINOR         0
-#define ZYNQMP_PM_VERSION_MAJOR_SHIFT   16
-#define ZYNQMP_PM_VERSION_MINOR_MASK    0xFFFF
+#define PM_SIP_SVC	0xc2000000
+
+#define ZYNQMP_PM_VERSION_MAJOR		1
+#define ZYNQMP_PM_VERSION_MINOR		0
+#define ZYNQMP_PM_VERSION_MAJOR_SHIFT	16
+#define ZYNQMP_PM_VERSION_MINOR_MASK	0xFFFF
 
 #define ZYNQMP_PM_VERSION       \
 	((ZYNQMP_PM_VERSION_MAJOR << ZYNQMP_PM_VERSION_MAJOR_SHIFT) | \
 	 ZYNQMP_PM_VERSION_MINOR)
 
-#define ZYNQMP_PM_VERSION_INVALID       ~0
+#define ZYNQMP_PM_VERSION_INVALID	~0
 
-#define PMUFW_V1_0      ((1 << ZYNQMP_PM_VERSION_MAJOR_SHIFT) | 0)
-
+#define PMUFW_V1_0	((1 << ZYNQMP_PM_VERSION_MAJOR_SHIFT) | 0)
 #define PMIO_NODE_ID_BASE		0x1410801B
-#define DEV_OSPI			0x1822402a
-#define PM_CAPABILITY_ACCESS		0x1
-#define PM_MAX_QOS			100
-/* Firmware feature check version mask */
-#define FIRMWARE_VERSION_MASK		GENMASK(15, 0)
-/* PM API versions */
-#define PM_API_VERSION_2		2
 
 /*
  * Return payload size
@@ -450,11 +447,14 @@ enum pm_sd_config_type {
 unsigned int zynqmp_firmware_version(void);
 int zynqmp_pmufw_node(u32 id);
 int zynqmp_pmufw_config_close(void);
-void zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size);
+int zynqmp_pmufw_load_config_object(const void *cfg_obj, size_t size);
 int xilinx_pm_request(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
 		      u32 arg3, u32 *ret_payload);
 int zynqmp_pm_set_sd_config(u32 node, enum pm_sd_config_type config, u32 value);
+int zynqmp_pm_set_gem_config(u32 node, enum pm_gem_config_type config,
+			     u32 value);
 int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id);
+int zynqmp_pm_feature(const u32 api_id);
 
 /* Type of Config Object */
 #define PM_CONFIG_OBJECT_TYPE_BASE	0x1U
@@ -486,5 +486,16 @@ enum zynqmp_pm_request_ack {
 #define ZYNQMP_PM_CAPABILITY_UNUSABLE	0x8U
 
 #define ZYNQMP_PM_MAX_QOS		100U
+/* Firmware feature check version mask */
+#define FIRMWARE_VERSION_MASK		GENMASK(15, 0)
+/* PM API versions */
+#define PM_API_VERSION_2		2
+
+#define PM_PINCTRL_PARAM_SET_VERSION	2
+
+struct zynqmp_ipi_msg {
+	size_t len;
+	u32 *buf;
+};
 
 #endif /* _ZYNQMP_FIRMWARE_H_ */

@@ -26,7 +26,10 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined(CONFIG_FPGA_VERSALPL)
-static xilinx_desc versalpl = XILINX_VERSAL_DESC;
+static xilinx_desc versalpl = {
+	xilinx_versal, csu_dma, 1, &versal_op, 0, &versal_op, NULL,
+	FPGA_LEGACY
+};
 #endif
 
 int board_init(void)
@@ -73,7 +76,7 @@ int board_early_init_r(void)
 	 * Program freq register in System counter and
 	 * enable system counter.
 	 */
-	writel(COUNTER_FREQUENCY,
+	writel(CONFIG_COUNTER_FREQUENCY,
 	       &iou_scntr_secure->base_frequency_id_register);
 
 	debug("counter val 0x%x\n",
@@ -88,6 +91,23 @@ int board_early_init_r(void)
 	debug("timer 0x%llx\n", get_ticks());
 
 	return 0;
+}
+
+unsigned long do_go_exec(ulong (*entry)(int, char * const []), int argc,
+			 char *const argv[])
+{
+	int ret = 0;
+
+	if (current_el() > 1) {
+		smp_kick_all_cpus();
+		dcache_disable();
+		armv8_switch_to_el1(0x0, 0, 0, 0, (unsigned long)entry,
+				    ES_TO_AARCH64);
+	} else {
+		printf("FAIL: current EL is not above EL1\n");
+		ret = EINVAL;
+	}
+	return ret;
 }
 
 static u8 versal_get_bootmode(void)
@@ -112,7 +132,7 @@ int board_late_init(void)
 	int bootseq = -1;
 	int bootseq_len = 0;
 	int env_targets_len = 0;
-	const char *mode;
+	const char *mode = NULL;
 	char *new_targets;
 	char *env_targets;
 
@@ -154,8 +174,8 @@ int board_late_init(void)
 					      "mmc@f1050000", &dev) &&
 		    uclass_get_device_by_name(UCLASS_MMC,
 					      "sdhci@f1050000", &dev)) {
-			puts("Boot from EMMC but without SD1 enabled!\n");
-			return -1;
+			debug("SD1 driver for SD1 device is not present\n");
+			break;
 		}
 		debug("mmc1 device found at %p, seq %d\n", dev, dev_seq(dev));
 		mode = "mmc";
@@ -167,8 +187,8 @@ int board_late_init(void)
 					      "mmc@f1040000", &dev) &&
 		    uclass_get_device_by_name(UCLASS_MMC,
 					      "sdhci@f1040000", &dev)) {
-			puts("Boot from SD0 but without SD0 enabled!\n");
-			return -1;
+			debug("SD0 driver for SD0 device is not present\n");
+			break;
 		}
 		debug("mmc0 device found at %p, seq %d\n", dev, dev_seq(dev));
 
@@ -184,8 +204,8 @@ int board_late_init(void)
 					      "mmc@f1050000", &dev) &&
 		    uclass_get_device_by_name(UCLASS_MMC,
 					      "sdhci@f1050000", &dev)) {
-			puts("Boot from SD1 but without SD1 enabled!\n");
-			return -1;
+			debug("SD1 driver for SD1 device is not present\n");
+			break;
 		}
 		debug("mmc1 device found at %p, seq %d\n", dev, dev_seq(dev));
 
@@ -193,37 +213,38 @@ int board_late_init(void)
 		bootseq = dev_seq(dev);
 		break;
 	default:
-		mode = "";
 		printf("Invalid Boot Mode:0x%x\n", bootmode);
 		break;
 	}
 
-	if (bootseq >= 0) {
-		bootseq_len = snprintf(NULL, 0, "%i", bootseq);
-		debug("Bootseq len: %x\n", bootseq_len);
+	if (mode) {
+		if (bootseq >= 0) {
+			bootseq_len = snprintf(NULL, 0, "%i", bootseq);
+			debug("Bootseq len: %x\n", bootseq_len);
+		}
+
+		/*
+		 * One terminating char + one byte for space between mode
+		 * and default boot_targets
+		 */
+		env_targets = env_get("boot_targets");
+		if (env_targets)
+			env_targets_len = strlen(env_targets);
+
+		new_targets = calloc(1, strlen(mode) + env_targets_len + 2 +
+				     bootseq_len);
+		if (!new_targets)
+			return -ENOMEM;
+
+		if (bootseq >= 0)
+			sprintf(new_targets, "%s%x %s", mode, bootseq,
+				env_targets ? env_targets : "");
+		else
+			sprintf(new_targets, "%s %s", mode,
+				env_targets ? env_targets : "");
+
+		env_set("boot_targets", new_targets);
 	}
-
-	/*
-	 * One terminating char + one byte for space between mode
-	 * and default boot_targets
-	 */
-	env_targets = env_get("boot_targets");
-	if (env_targets)
-		env_targets_len = strlen(env_targets);
-
-	new_targets = calloc(1, strlen(mode) + env_targets_len + 2 +
-			     bootseq_len);
-	if (!new_targets)
-		return -ENOMEM;
-
-	if (bootseq >= 0)
-		sprintf(new_targets, "%s%x %s", mode, bootseq,
-			env_targets ? env_targets : "");
-	else
-		sprintf(new_targets, "%s %s", mode,
-			env_targets ? env_targets : "");
-
-	env_set("boot_targets", new_targets);
 
 	return board_late_init_xilinx();
 }

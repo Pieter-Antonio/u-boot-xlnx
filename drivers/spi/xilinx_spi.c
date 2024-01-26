@@ -24,8 +24,6 @@
 #include <wait_bit.h>
 #include <linux/bitops.h>
 
-DECLARE_GLOBAL_DATA_PTR;
-
 /*
  * [0]: http://www.xilinx.com/support/documentation
  *
@@ -82,8 +80,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define XILINX_SPI_IDLE_VAL	GENMASK(7, 0)
 
 #define XILINX_SPISR_TIMEOUT	10000 /* in milliseconds */
-
-#define XILINX_SPI_QUAD_MODE	2
 
 /* xilinx spi register set */
 struct xilinx_spi_regs {
@@ -275,7 +271,7 @@ static void xilinx_spi_startup_block(struct spi_slave *spi)
 	 * Perform a dummy read as a work around for
 	 * the startup block issue.
 	 */
-	spi_cs_activate(spi->dev, slave_plat->cs);
+	spi_cs_activate(spi->dev, slave_plat->cs[0]);
 	txp = 0x9f;
 	start_transfer(spi, (void *)&txp, NULL, 1);
 
@@ -303,7 +299,7 @@ static int xilinx_spi_mem_exec_op(struct spi_slave *spi,
 		startup++;
 	}
 
-	spi_cs_activate(spi->dev, slave_plat->cs);
+	spi_cs_activate(spi->dev, slave_plat->cs[0]);
 
 	if (op->cmd.opcode) {
 		ret = start_transfer(spi, (void *)&op->cmd.opcode, NULL, 1);
@@ -365,7 +361,7 @@ static int xilinx_qspi_check_buswidth(struct spi_slave *slave, u8 width)
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 bool xilinx_qspi_mem_exec_op(struct spi_slave *slave,
